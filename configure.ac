@@ -51,7 +51,7 @@ AC_FUNC_FORK
 
 AC_CHECK_HEADERS(getopt.h ncurses/ncurses.h ncurses.h curses.h)
 AC_CHECK_HEADERS(dirent.h sys/utsname.h sys/sockio.h netinet6/in6.h)
-AC_CHECK_HEADERS(rrd.h fcntl.h netdb.h netinet/in.h sysctl/ioctl.h)
+AC_CHECK_HEADERS(fcntl.h netdb.h netinet/in.h sysctl/ioctl.h)
 AC_CHECK_HEADERS(sys/param.h sys/socket.h)
 
 AC_CHECK_TYPES(suseconds_t)

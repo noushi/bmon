@@ -49,9 +49,9 @@ ifeq ($(CURSES),Yes)
 CIN  += out_curses.c
 endif
 
-#ifeq ($(RRD),Yes)
-#CIN  += out_rrd.c
-#endif
+ifeq ($(RRD),Yes)
+CIN  += out_rrd.c
+endif
 
 OBJ  := $(CIN:%.c=%.o)
 OUT  := bmon
