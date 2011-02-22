@@ -83,13 +83,16 @@ static cfg_opt_t global_opts[] = {
 	CFG_INT("unit_exp", -1, CFGF_NONE),
 	CFG_INT("sleep_time", 20000UL, CFGF_NONE),
 	CFG_BOOL("use_si", 0, CFGF_NONE),
+	CFG_BOOL("daemon", 0, CFGF_NONE),
+	CFG_STR("uid", NULL, CFGF_NONE),
+	CFG_STR("gid", NULL, CFGF_NONE),
+	CFG_STR("pidfile", "/var/run/bmon.pid", CFGF_NONE),
 	CFG_INT("signal_driven", 0, CFGF_NONE),
 	CFG_STR("policy", "", CFGF_NONE),
 	CFG_SEC("unit", unit_opts, CFGF_MULTI | CFGF_TITLE),
 	CFG_SEC("attr", attr_opts, CFGF_MULTI | CFGF_TITLE),
 	CFG_SEC("history", history_opts, CFGF_MULTI | CFGF_TITLE),
 	CFG_SEC("element", element_opts, CFGF_MULTI | CFGF_TITLE),
-	CFG_END()
 };
 
 float			cfg_read_interval;
@@ -100,14 +103,6 @@ int			cfg_show_all;
 int			cfg_unit_exp		= DYNAMIC_EXP;
 
 static char *		configfile		= NULL;
-
-#if 0
-int			run_as_daemon		= 0;
-char *			pidfile			= "/var/run/bmon.pid";
-char *			config_basedir		= SYSCONFDIR;
-static int             no_state_lock      = 0;
-static int             no_state_file      = 0;
-#endif
 
 #if defined HAVE_CURSES
 #if defined HAVE_USE_DEFAULT_COLORS

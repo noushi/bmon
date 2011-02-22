@@ -44,7 +44,6 @@ static char *usage_text =
 "   -I, --secondary-input=MODPARM   Secondary input modules\n" \
 "   -O, --secondary-output=MODPARM  Secondary output modules\n" \
 "   -f, --configfile=PATH           Alternative path to configuration file\n" \
-"   -F, --configbasedir=PATH        Base path to configuration directory\n" \
 "   -w, --wait-for-signal           Signal driven output intervals\n" \
 "   -S, --send-signal=PID           Send SIGUSR1 to a running bmon instance\n" \
 "   -d, --daemon                    Run as a daemon\n" \
@@ -57,16 +56,12 @@ static char *usage_text =
 "Input:\n" \
 "   -p, --policy=POLICY             Interface acceptance policy\n" \
 "   -a, --show-all                  Accept interfaces even if they are down\n" \
-"   -A, --attr-policy=ATTRS         Attributes history configuration\n" \
 "   -r, --read-interval=FLOAT       Read interval in seconds\n" \
-"   -H, --heartbeat=HBEAT           Heartbeat factor (0..1)\n" \
 "   -L, --lifetime=LIFETIME         Lifetime of a item in seconds\n" \
-"   -t, --itemtab=PATH              Alternative path to itemtab file\n" \
 "   -s, --sleep-interval=FLOAT      Sleep time in seconds\n" \
 "\n" \
 "Output:\n" \
 "   -c, --use-si                    Use SI units\n" \
-"   -N, --num-graphs=NUM            Number of graphs to draw\n" \
 "\n" \
 "Rate Estimation:\n" \
 "   -R, --rate-interval=FLOAT       Rate interval in seconds\n" \
@@ -77,19 +72,14 @@ static char *usage_text =
 "   option  := TYPE[=VALUE]\n" \
 "\n" \
 "   Examples:\n" \
-"       -O html:path=/var/www/html,distribution:port=2444;debug\n" \
-"       -O list          # Shows a list of available modules\n" \
-"       -O html:help     # Shows a help text for html module\n" \
+"       -o curses:ngraph=2\n" \
+"       -o list            # Shows a list of available modules\n" \
+"       -o curses:help     # Shows a help text for html module\n" \
 "\n" \
 "Interface selection:\n" \
 "   policy  := [!]simple_regexp,[!]simple_regexp,...\n" \
 "\n" \
 "   Example: -p 'eth*,lo*,!eth1'\n" \
-"\n" \
-"Attributes selection:\n" \
-"   attrs   := [!]name,[!]name,...\n" \
-"\n" \
-"   Example: -A !hbeat_err\n" \
 "\n" \
 "Please see the bmon(1) man pages for full documentation.\n";
 
@@ -202,7 +192,7 @@ static void parse_args_post(int argc, char *argv[])
 
 	for (;;)
 	{
-		char *gostr = "i:I:o:O:p:r:s:S:P:wadA:cN:" \
+		char *gostr = "i:I:o:O:p:r:s:S:P:wadcN:" \
 			      "u:g:H:R:L:t:";
 
 #ifdef HAVE_GETOPT_LONG
@@ -225,7 +215,6 @@ static void parse_args_post(int argc, char *argv[])
 			{"num-graphs", 1, 0, 'N'},
 			{"uid", 1, 0, 'u'},
 			{"gid", 1, 0, 'g'},
-			{"heartbeat", 1, 0, 'H'},
 			{"lifetime", 1, 0, 'L'},
 			{0, 0, 0, 0},
 		};
@@ -289,33 +278,23 @@ static void parse_args_post(int argc, char *argv[])
 			case 'L':
 				cfg_setint(cfg, "lifetime", strtoul(optarg, NULL, 0));
 				break;
-#if 0
-
-			case 'A':
-				attr_parse_policy(optarg);
-				break;
 
 			case 'd':
-				set_run_as_daemon(1);
+				cfg_setbool(cfg, "daemon", cfg_true);
 				break;
 
 			case 'P':
-				set_pidfile(optarg);
+				cfg_setstr(cfg, "pidfile", optarg);
 				break;
 
 			case 'u':
-				uid = strdup(optarg);
+				cfg_setstr(cfg, "uid", optarg);
 				break;
 
 			case 'g':
-				gid = strdup(optarg);
+				cfg_setstr(cfg, "gid", optarg);
 				break;
 
-			case 'H':
-				set_hb_factor(optarg);
-				break;
-
-#endif
 		}
 	}
 }
@@ -334,11 +313,14 @@ static void calc_variance(timestamp_t *c, timestamp_t *ri)
 	if (v < rtiming.rt_variance.v_min)
 		rtiming.rt_variance.v_min = v;
 }
+#endif
 
 static void drop_privs(void)
 {
 	struct passwd *uentry = NULL;
 	struct group *gentry = NULL;
+	char *gid = cfg_getstr(cfg, "gid");
+	char *uid = cfg_getstr(cfg, "uid");
 
 	if (gid)
 		gentry = getgrnam(gid);
@@ -360,8 +342,8 @@ static void drop_privs(void)
 static void daemonize(void)
 {
 #ifdef HAVE_DAEMON 
-	if (!daemon(0, 0))
-		quit("Can't fork: %s\n", strerror(errno));
+	if (daemon(0, 0) < 0)
+		quit("Can't daemon(): %s\n", strerror(errno));
 #else
 	int devnull;
 	pid_t pid;
@@ -398,7 +380,11 @@ static void daemonize(void)
 
 static void write_pidfile(void)
 {
+	char *pidfile = cfg_getstr(cfg, "pidfile");
 	FILE *pf;
+
+	if (!pidfile)
+		return;
 
 	pf = fopen(pidfile, "w");
 	if (pf == NULL)
@@ -414,7 +400,6 @@ static void init_syslog(void)
 {
 	openlog("bmon", LOG_CONS | LOG_PID, LOG_DAEMON);
 }
-#endif
 
 int main(int argc, char *argv[])
 {
@@ -438,19 +423,15 @@ int main(int argc, char *argv[])
 	if (((double) sleep_time / 1000000.0f) > read_interval)
 		sleep_time = (unsigned long) (read_interval * 1000000.0f);
 
-#if 0
-	//itemtab_read();
-
 	// pipe_start();
 
-	if (run_as_daemon) {
+	if (cfg_getbool(cfg, "daemon")) {
 		init_syslog();
 		daemonize();
 		write_pidfile();
 	}
 
 	drop_privs();
-#endif
 
 	do {
 		/*
