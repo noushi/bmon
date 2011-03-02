@@ -47,25 +47,23 @@ static char *usage_text =
 "   -f, --configfile=PATH           Alternative path to configuration file\n" \
 "   -w, --wait-for-signal           Signal driven output intervals\n" \
 "   -S, --send-signal=PID           Send SIGUSR1 to a running bmon instance\n" \
-"   -d, --daemon                    Run as a daemon\n" \
+"   -d, --daemon                    Run bmon as daemon\n" \
 "   -P, --pidfile=PATH              Path to the pidfile\n" \
-"   -u, --uid=UID                   Drop privileges and change UID\n" \
-"   -g, --gid=GID                   Drop privileges and change GID\n" \
-"   -h, --help                      show this help text\n" \
-"   -V, --version                   show version\n" \
+"   -u, --uid=UID                   Drop privileges and change to UID\n" \
+"   -g, --gid=GID                   Drop privileges and change to GID\n" \
+"   -h, --help                      Show this help text\n" \
+"   -V, --version                   Show version\n" \
 "\n" \
 "Input:\n" \
-"   -p, --policy=POLICY             Interface acceptance policy\n" \
-"   -a, --show-all                  Accept interfaces even if they are down\n" \
-"   -r, --read-interval=FLOAT       Read interval in seconds\n" \
-"   -L, --lifetime=LIFETIME         Lifetime of a item in seconds\n" \
-"   -s, --sleep-interval=FLOAT      Sleep time in seconds\n" \
+"   -p, --policy=POLICY             Element display policy (see below)\n" \
+"   -a, --show-all                  Show all elements (even disabled elements)\n" \
+"   -r, --read-interval=FLOAT       Read interval in seconds (float)\n" \
+"   -R, --rate-internval=FLOAT      Rate interval in seconds (float)\n" \
+"   -s, --sleep-interval=FLOAT      Sleep time in seconds (float)\n" \
+"   -L, --lifetime=LIFETIME         Lifetime of an element in seconds (float)\n" \
 "\n" \
 "Output:\n" \
-"   -c, --use-si                    Use SI units\n" \
-"\n" \
-"Rate Estimation:\n" \
-"   -R, --rate-interval=FLOAT       Rate interval in seconds\n" \
+"   -U, --use-si                    Use SI units\n" \
 "\n" \
 "Module configuration:\n" \
 "   modparm := MODULE:optlist,MODULE:optlist,...\n" \
@@ -192,8 +190,8 @@ static void parse_args_post(int argc, char *argv[])
 
 	for (;;)
 	{
-		char *gostr = "i:I:o:O:p:r:s:S:P:wadcN:" \
-			      "u:g:H:R:L:t:";
+		char *gostr = "i:I:o:O:p:r:R:s:S:P:wadu:U" \
+			      "L:g:hvVf:";
 
 #ifdef HAVE_GETOPT_LONG
 		struct option long_opts[] = {
@@ -203,19 +201,17 @@ static void parse_args_post(int argc, char *argv[])
 			{"secondary-output", 1, 0, 'O'},
 			{"policy", 1, 0, 'p'},
 			{"read-interval", 1, 0, 'r'},
-			{"sleep-interval", 1, 0, 's'},
 			{"rate-interval", 1, 0, 'R'},
+			{"sleep-interval", 1, 0, 's'},
 			{"send-signal", 1, 0, 'S'},
 			{"pidfile", 1, 0, 'P'},
 			{"wait-for-signal", 0, 0, 'w'},
 			{"show-all", 0, 0, 'a'},
 			{"daemon", 0, 0, 'd'},
-			{"attr-policy", 1, 0, 'A'},
-			{"use-si", 0, 0, 'c'},
-			{"num-graphs", 1, 0, 'N'},
 			{"uid", 1, 0, 'u'},
-			{"gid", 1, 0, 'g'},
+			{"use-si", 0, 0, 'U'},
 			{"lifetime", 1, 0, 'L'},
+			{"gid", 1, 0, 'g'},
 			{0, 0, 0, 0},
 		};
 		int c = getopt_long(argc, argv, gostr, long_opts, NULL);
@@ -244,8 +240,16 @@ static void parse_args_post(int argc, char *argv[])
 				output_set_secondary(optarg);
 				break;
 
+			case 'p':
+				cfg_setstr(cfg, "policy", optarg);
+				break;
+
 			case 'r':
 				cfg_setfloat(cfg, "read_interval", strtod(optarg, NULL));
+				break;
+
+			case 'R':
+				cfg_setfloat(cfg, "rate_interval", strtod(optarg, NULL));
 				break;
 
 			case 's':
@@ -260,18 +264,23 @@ static void parse_args_post(int argc, char *argv[])
 				cfg_setint(cfg, "signal_driven", 1);
 				break;
 
-			case 'R':
-				cfg_setfloat(cfg, "rate_interval", strtod(optarg, NULL));
+			case 'P':
+				cfg_setstr(cfg, "pidfile", optarg);
 				break;
+
 			case 'a':
 				cfg_setint(cfg, "show_all", 1);
 				break;
 
-			case 'p':
-				cfg_setstr(cfg, "policy", optarg);
+			case 'd':
+				cfg_setbool(cfg, "daemon", cfg_true);
 				break;
 
-			case 'c':
+			case 'u':
+				cfg_setstr(cfg, "uid", optarg);
+				break;
+
+			case 'U':
 				cfg_setbool(cfg, "use_si", cfg_true);
 				break;
 
@@ -279,20 +288,16 @@ static void parse_args_post(int argc, char *argv[])
 				cfg_setint(cfg, "lifetime", strtoul(optarg, NULL, 0));
 				break;
 
-			case 'd':
-				cfg_setbool(cfg, "daemon", cfg_true);
-				break;
-
-			case 'P':
-				cfg_setstr(cfg, "pidfile", optarg);
-				break;
-
-			case 'u':
-				cfg_setstr(cfg, "uid", optarg);
-				break;
-
 			case 'g':
 				cfg_setstr(cfg, "gid", optarg);
+				break;
+
+			case 'f':
+				/* Already handled in pre getopt loop */
+				break;
+
+			default:
+				quit("Aborting...\n");
 				break;
 
 		}
