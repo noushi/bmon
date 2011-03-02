@@ -21,7 +21,7 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-AC_INIT(bmon, 3.0-pre1, tgraf@suug.ch)
+AC_INIT(bmon, 3.0-git, tgraf@suug.ch)
 AC_CONFIG_HEADER(include/bmon/defs.h)
 
 AC_CANONICAL_SYSTEM
@@ -60,25 +60,27 @@ AC_CHECK_FUNCS(atexit gettimeofday memset pow socket strcasecmp)
 AC_CHECK_FUNCS(strchr strdup strerror strncasecmp strstr strtol)
 AC_CHECK_FUNCS(uname daemon getopt_long getdate)
 
+BMON_LIB=""
+
 #
 # Check if -lsocket is needed
 #
 AC_CHECK_FUNC(connect,,[
-	AC_CHECK_LIB(socket,connect,LIB_INET="${LIB_INET} -lsocket")
+	AC_CHECK_LIB(socket, connect, BMON_LIB="$BMON_LIB -lsocket")
 ])
 
 #
 # Check if -lnsl is needed
 #
 AC_CHECK_FUNC(gethostbyname,,[
-	AC_CHECK_LIB(nsl,gethostbyname,LIB_INET="${LIB_INET} -lnsl")
+	AC_CHECK_LIB(nsl, gethostbyname, BMON_LIB="$BMON_LIB -lnsl")
 ])
 
 #
 # Check if -lresolv is needed
 #
 AC_CHECK_FUNC(inet_aton,,[
-	AC_CHECK_LIB(resolv, inet_aton,LIB_INET="${LIB_INET} -lresolv")
+	AC_CHECK_LIB(resolv, inet_aton, BMON_LIB="$BMON_LIB -lresolv")
 ])
 
 AC_CHECK_FUNC(fcloseall,[
@@ -174,18 +176,20 @@ AC_CHECK_LIB(nl, nl_connect, [
 	esac
 ])
 
-#####################################################################
-##
-## libm check
-##
-#####################################################################
-M="No "
 AC_CHECK_LIB(m, pow, [
-	LIBM="-lm"
-	M="Yes"
+	BMON_LIB="$BMON_LIB -lm"
 ],[
 	echo
 	echo "*** Error: libm required ***"
+	echo
+	exit
+])
+
+AC_CHECK_LIB(confuse, cfg_parse, [
+	BMON_LIB="$BMON_LIB -lconfuse"
+],[
+	echo
+	echo "*** Error: libconfuse required ***"
 	echo
 	exit
 ])
@@ -285,8 +289,6 @@ esac
 ## compile decisions
 ##
 #####################################################################
-COMPILE_BMON="Yes "
-BMON_LIB="$LIB_INET $LIBM -lconfuse"
 if test x$CURSES = xYes; then
 	BMON_LIB="$BMON_LIB $LIBCURSES"
 fi;
@@ -308,7 +310,6 @@ fi;
 ## export variables
 ##
 #####################################################################
-AC_SUBST(COMPILE_BMON)
 AC_SUBST(BMON_LIB)
 
 AC_SUBST(DEBUG)
@@ -334,16 +335,15 @@ SUMMARY:
 OS: $target_os
 
 Included in Compilation:
-  bmon:   $COMPILE_BMON $BMON_LIB
+  bmon:			$BMON_LIB
 
 Dependencies:
 bmon:
-  libm             $M       (required)
-  lib(n)curses     $CURSES       (suggested)
-  librrd           $RRD       (suggested)"
+  lib(n)curses		$CURSES       (suggested)
+  librrd		$RRD       (suggested)"
 case ${target_os} in
   *linux*)
-   echo "  libnl            $NL       (suggested)"
+   echo "  libnl			$NL       (suggested)"
    ;;
 esac
 if test x$target_os = xsolaris; then

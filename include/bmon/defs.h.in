@@ -87,9 +87,6 @@
 /* have rrd */
 #undef HAVE_RRD
 
-/* Define to 1 if you have the <rrd.h> header file. */
-#undef HAVE_RRD_H
-
 /* Define to 1 if you have the `socket' function. */
 #undef HAVE_SOCKET
 
