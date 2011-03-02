@@ -355,11 +355,12 @@ static void format_parse_opt(const char *type, const char *value)
 	}
 }
 
-static struct output_module format_ops = {
-	.om_name	= "format",
-	.om_draw	= format_draw,
-	.om_probe	= format_probe,
-	.om_parse_opt	= format_parse_opt,
+static struct bmon_module format_ops = {
+	.m_name		= "format",
+	.m_type		= BMON_PRIMARY_MODULE,
+	.m_do		= format_draw,
+	.m_probe	= format_probe,
+	.m_parse_opt	= format_parse_opt,
 };
 
 static void __init ascii_init(void)

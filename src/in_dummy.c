@@ -196,12 +196,13 @@ static int dummy_probe(void)
 	return 1;
 }
 
-static struct input_module dummy_ops = {
-	.im_name	= "dummy",
-	.im_read	= dummy_read,
-	.im_parse_opt	= dummy_parse_opt,
-	.im_probe	= dummy_probe,
-	.im_no_default	= 1,
+static struct bmon_module dummy_ops = {
+	.m_name		= "dummy",
+	.m_type		= BMON_PRIMARY_MODULE,
+	.m_do		= dummy_read,
+	.m_parse_opt	= dummy_parse_opt,
+	.m_probe	= dummy_probe,
+	.m_flags	= BMON_MODULE_NO_DEFAULT,
 };
 
 static void __init dummy_init(void)

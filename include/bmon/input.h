@@ -27,28 +27,12 @@
 
 #include <bmon/bmon.h>
 #include <bmon/conf.h>
-
-struct input_module
-{
-	char *			im_name;
-	void		      (*im_read)(void);
-	void		      (*im_parse_opt)(const char *, const char *);
-	int		      (*im_probe)(void);
-	void		      (*im_init)(void);
-	void		      (*im_shutdown)(void);
-	int			im_no_default;
-	int			im_enable;
-	struct list_head	im_list;
-};
-
-extern void input_init(void);
-extern void input_shutdown(void);
+#include <bmon/module.h>
 
 extern void input_set(const char *);
 extern void input_set_secondary(const char *);
 
-extern void input_register(struct input_module *);
-extern void input_register_secondary(struct input_module *);
+extern void input_register(struct bmon_module *);
 
 extern void input_read(void);
 

@@ -27,30 +27,13 @@
 
 #include <bmon/bmon.h>
 #include <bmon/conf.h>
+#include <bmon/module.h>
 
-struct output_module
-{
-	char *                 om_name;
-	void		      (*om_init)(void);
-	void		      (*om_parse_opt)(const char *, const char *);
-	int		      (*om_probe)(void);
-	void		      (*om_pre)(void);
-	void		      (*om_draw)(void);
-	void		      (*om_post)(void);
-	void		      (*om_shutdown)(void);
-	int			om_enable;
-
-	struct list_head	om_list;
-};
-
-extern void		output_register(struct output_module *);
-extern void		output_register_secondary(struct output_module *);
+extern void		output_register(struct bmon_module *);
 extern void		output_set(const char *);
 extern void		output_set_secondary(const char *);
-extern void		output_init(void);
 extern void		output_pre(void);
 extern void		output_draw(void);
 extern void		output_post(void);
-extern void		output_shutdown(void);
 
 #endif

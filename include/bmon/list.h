@@ -63,6 +63,8 @@ static inline int list_empty(struct list_head *head)
 #define list_at_head(pos, head, member) \
 	((pos)->member.prev == (head))
 
+#define LIST_SELF(name) { &(name), &(name) }
+
 #define LIST_HEAD(name) \
 	struct list_head name = { &(name), &(name) }
 

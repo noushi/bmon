@@ -161,12 +161,13 @@ static int proc_probe(void)
 	return 0;
 }
 
-static struct input_module proc_ops = {
-	.im_name	= "proc",
-	.im_read	= proc_read,
-	.im_parse_opt	= proc_parse_opt,
-	.im_probe	= proc_probe,
-	.im_init	= proc_do_init,
+static struct bmon_module proc_ops = {
+	.m_name		= "proc",
+	.m_type		= BMON_PRIMARY_MODULE,
+	.m_do		= proc_read,
+	.m_parse_opt	= proc_parse_opt,
+	.m_probe	= proc_probe,
+	.m_init		= proc_do_init,
 };
 
 static void __init proc_init(void)

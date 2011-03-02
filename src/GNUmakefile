@@ -25,7 +25,7 @@ ifeq ($(shell [ ! -r ../Makefile.opts ] && echo 1),)
 endif
 
 CIN := utils.c unit.c conf.c input.c output.c group.c element.c attr.c
-CIN += signal.c element_cfg.c history.c graph.c bmon.c
+CIN += signal.c element_cfg.c history.c graph.c bmon.c module.c
 
 # Primary input modules
 CIN += in_null.c in_dummy.c

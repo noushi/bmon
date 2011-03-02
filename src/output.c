@@ -24,74 +24,45 @@
 
 #include <bmon/bmon.h>
 #include <bmon/output.h>
+#include <bmon/module.h>
 #include <bmon/conf.h>
 #include <bmon/signal.h>
 #include <bmon/group.h>
 #include <bmon/utils.h>
 
-static LIST_HEAD(primary_list);
-static LIST_HEAD(secondary_list);
+static struct bmon_subsys output_subsys;
 
-static struct output_module *preferred;
-
-void output_register(struct output_module *om)
+void output_register(struct bmon_module *m)
 {
-	list_add_tail(&om->om_list, &primary_list);
-}
-
-void output_register_secondary(struct output_module *om)
-{
-	list_add_tail(&om->om_list, &secondary_list);
-}
-
-static struct output_module *__output_get(const char *name,
-					  struct list_head *list)
-{
-	struct output_module *om;
-
-	list_for_each_entry(om, list, om_list)
-		if (!strcmp(om->om_name, name))
-			return om;
-
-	return NULL;
-}
-
-static struct output_module *output_get(const char *name)
-{
-	return __output_get(name, &primary_list);
-}
-
-static struct output_module * output_get_secondary(const char *name)
-{
-	return __output_get(name, &secondary_list);
+	module_register(&output_subsys, m);
 }
 
 #define FOR_ALL_OUTPUT(F) \
 	do { \
-		struct output_module *om; \
-		if (preferred->om_##F) \
-			preferred->om_##F (); \
-		list_for_each_entry(om, &secondary_list, om_list) \
-			if (om->om_enable && om->om_##F) \
-				om->om_##F (); \
+		struct bmon_module *m; \
+		if (output_subsys.s_primary && \
+		    output_subsys.s_primary->m_##F) \
+			output_subsys.s_primary->m_##F (); \
+		list_for_each_entry(m, &output_subsys.s_secondary_list, m_list) \
+			if (m->m_flags & BMON_MODULE_ENABLED && m->m_##F) \
+				m->m_##F (); \
 	} while (0)
 
-static void find_preferred(int quiet)
+static struct bmon_module *output_get(const char *name)
 {
-	if (preferred == NULL)
-		preferred = output_get("curses");
-
-	if (preferred == NULL)
-		preferred = output_get("ascii");
-
-	if (preferred == NULL)
-		quit("No output module found.\n");
+	return module_lookup(name, &output_subsys.s_primary_list);
 }
 
-void output_init(void)
+static void find_primary(void)
 {
-	find_preferred(0);
-	FOR_ALL_OUTPUT(init);
+	if (!output_subsys.s_primary)
+		output_subsys.s_primary = output_get("curses");
+
+	if (!output_subsys.s_primary)
+		output_subsys.s_primary = output_get("ascii");
+
+	if (!output_subsys.s_primary)
+		quit("No output module found.\n");
 }
 
 void output_pre(void)
@@ -111,7 +82,7 @@ void output_draw(void)
 	if (signal_driven && !signal_received())
 		return;
 
-	FOR_ALL_OUTPUT(draw);
+	FOR_ALL_OUTPUT(do);
 }
 
 void output_post(void)
@@ -119,102 +90,24 @@ void output_post(void)
 	FOR_ALL_OUTPUT(post);
 }
 
-void output_shutdown(void)
-{
-	if (!preferred)
-		return;
-
-	FOR_ALL_OUTPUT(shutdown);
-}
-
-static void list_output(void)
-{
-	struct output_module *o;
-
-	printf("Output modules:\n");
-	if (list_empty(&primary_list))
-		printf("\tNo output modules found.\n");
-	else
-		list_for_each_entry(o, &primary_list, om_list)
-			printf("\t%s\n", o->om_name);
-}
-
 void output_set(const char *name)
 {
-	static int set = 0;
-	module_conf_t *m;
-	LIST_HEAD(list);
-
-	if (set)
-		return;
-	set = 1;
-
-	if (NULL == name || !strcasecmp(name, "list")) {
-		list_output();
-		exit(0);
-	}
-	
-	parse_module_param(name, &list);
-
-	list_for_each_entry(m, &list, m_list) {
-		if (!(preferred = output_get(m->m_name)))
-			continue;
-
-		if (preferred->om_parse_opt) {
-			tv_t *tv;
-
-			list_for_each_entry(tv, &m->m_attrs, tv_list)
-				preferred->om_parse_opt(tv->tv_type, tv->tv_value);
-		}
-
-		if (preferred->om_probe)
-			if (preferred->om_probe())
-				return;
-	}
-	
-	quit("No (working) output module found\n");
-}
-
-static void list_sec_output(void)
-{
-	struct output_module *o;
-
-	printf("Secondary output modules:\n");
-	if (list_empty(&secondary_list))
-		printf("\tNo secondary output modules found.\n");
-	else
-		list_for_each_entry(o, &secondary_list, om_list)
-			printf("\t%s\n", o->om_name);
+	return module_set(&output_subsys, BMON_PRIMARY_MODULE, name);
 }
 
 void output_set_secondary(const char *name)
 {
-	module_conf_t *m;
-	LIST_HEAD(list);
+	return module_set(&output_subsys, BMON_SECONDARY_MODULE, name);
+}
 
-	if (NULL == name || !strcasecmp(name, "list")) {
-		list_sec_output();
-		exit(0);
-	}
-	
-	parse_module_param(name, &list);
+static struct bmon_subsys output_subsys = {
+	.s_name			= "output",
+	.s_find_primary		= &find_primary,
+	.s_primary_list		= LIST_SELF(output_subsys.s_primary_list),
+	.s_secondary_list	= LIST_SELF(output_subsys.s_secondary_list),
+};
 
-	list_for_each_entry(m, &list, m_list) {
-		struct output_module *o = output_get_secondary(m->m_name);
-
-		if (NULL == o) 
-			quit("Unknown output module: %s\n", m->m_name);
-
-		if (o->om_parse_opt) {
-			tv_t *tv;
-
-			list_for_each_entry(tv, &m->m_attrs, tv_list)
-				o->om_parse_opt(tv->tv_type, tv->tv_value);
-		}
-
-		if (o->om_probe) {
-			if (o->om_probe() == 1)
-				o->om_enable = 1;
-		}
-	}
+static void __init __output_init(void)
+{
+	return module_register_subsys(&output_subsys);
 }

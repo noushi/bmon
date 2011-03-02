@@ -54,12 +54,13 @@ static int null_probe(void)
 	return 1;
 }
 
-static struct input_module null_ops = {
-	.im_name		= "null",
-	.im_read		= null_read,
-	.im_parse_opt		= null_parse_opt,
-	.im_probe		= null_probe,
-	.im_no_default		= 1,
+static struct bmon_module null_ops = {
+	.m_name			= "null",
+	.m_type			= BMON_PRIMARY_MODULE,
+	.m_do			= null_read,
+	.m_parse_opt		= null_parse_opt,
+	.m_probe		= null_probe,
+	.m_flags		= BMON_MODULE_NO_DEFAULT,
 };
 
 static void __init null_init(void)

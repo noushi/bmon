@@ -27,6 +27,7 @@
 #include <bmon/utils.h>
 #include <bmon/input.h>
 #include <bmon/output.h>
+#include <bmon/module.h>
 #include <bmon/group.h>
 #include <bmon/signal.h>
 
@@ -91,9 +92,8 @@ static void do_shutdown(void)
 	
 	if (!done) {
 		done = 1;
-		input_shutdown();
+		module_shutdown();
 		conf_shutdown();
-		output_shutdown();
 	}
 }
 
@@ -414,8 +414,7 @@ int main(int argc, char *argv[])
 	parse_args_post(argc, argv);
 
 	conf_init();
-	input_init();
-	output_init();
+	module_init();
 
 	read_interval = cfg_read_interval;
 	sleep_time = cfg_getint(cfg, "sleep_time");

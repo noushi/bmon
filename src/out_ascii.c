@@ -296,11 +296,12 @@ static void ascii_parse_opt(const char *type, const char *value)
 		quit("Unknown module option '%s'\n", type);
 }
 
-static struct output_module ascii_ops = {
-	.om_name	= "ascii",
-	.om_draw	= ascii_draw,
-	.om_probe	= ascii_probe,
-	.om_parse_opt	= ascii_parse_opt,
+static struct bmon_module ascii_ops = {
+	.m_name		= "ascii",
+	.m_type		= BMON_PRIMARY_MODULE,
+	.m_do		= ascii_draw,
+	.m_probe	= ascii_probe,
+	.m_parse_opt	= ascii_parse_opt,
 };
 
 static void __init ascii_init(void)

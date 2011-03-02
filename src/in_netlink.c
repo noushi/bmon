@@ -552,13 +552,14 @@ static void netlink_parse_opt(const char *type, const char *value)
 	}
 }
 
-static struct input_module netlink_ops = {
-	.im_name	= "netlink",
-	.im_read	= netlink_read,
-	.im_shutdown	= netlink_shutdown,
-	.im_parse_opt	= netlink_parse_opt,
-	.im_probe	= netlink_probe,
-	.im_init	= netlink_do_init,
+static struct bmon_module netlink_ops = {
+	.m_name		= "netlink",
+	.m_type		= BMON_PRIMARY_MODULE,
+	.m_do		= netlink_read,
+	.m_shutdown	= netlink_shutdown,
+	.m_parse_opt	= netlink_parse_opt,
+	.m_probe	= netlink_probe,
+	.m_init		= netlink_do_init,
 };
 
 static void __init netlink_init(void)

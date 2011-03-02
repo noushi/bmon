@@ -251,16 +251,17 @@ static int rrd_probe(void)
 	return 1;
 }
 
-static struct output_module rrd_ops = {
-	.om_name	= "rrd",
-	.om_draw	= rrd_draw,
-	.om_parse_opt	= rrd_parse_opt,
-	.om_probe	= rrd_probe,
-	.om_init	= rrd_do_init,
+static struct bmon_module rrd_ops = {
+	.m_name		= "rrd",
+	.m_type		= BMON_SECONDARY_MODULE,
+	.m_do		= rrd_draw,
+	.m_parse_opt	= rrd_parse_opt,
+	.m_probe	= rrd_probe,
+	.m_init		= rrd_do_init,
 };
 
 static void __init save_init(void)
 {
 	c_rra[0] = "RRA:AVERAGE:0.5:1:86400";
-	output_register_secondary(&rrd_ops);
+	output_register(&rrd_ops);
 }

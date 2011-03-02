@@ -1265,14 +1265,15 @@ static void curses_parse_opt(const char *type, const char *value)
 	}
 }
 
-static struct output_module curses_ops = {
-	.om_name	= "curses",
-	.om_init	= curses_init,
-	.om_shutdown	= curses_shutdown,
-	.om_pre		= curses_pre,
-	.om_draw	= curses_draw,
-	.om_parse_opt	= curses_parse_opt,
-	.om_probe	= curses_probe,
+static struct bmon_module curses_ops = {
+	.m_name		= "curses",
+	.m_type		= BMON_PRIMARY_MODULE,
+	.m_init		= curses_init,
+	.m_shutdown	= curses_shutdown,
+	.m_pre		= curses_pre,
+	.m_do		= curses_draw,
+	.m_parse_opt	= curses_parse_opt,
+	.m_probe	= curses_probe,
 };
 
 static void __init do_curses_init(void)

@@ -180,12 +180,13 @@ static int kstat_probe(void)
 	return 0;
 }
 
-static struct input_module kstat_ops = {
-	.im_name	= "kstat",
-	.im_read	= kstat_do_read,
-	.im_set_opts	= kstat_set_opts,
-	.im_probe	= kstat_probe,
-	.im_init	= kstat_do_init,
+static struct bmon_module kstat_ops = {
+	.m_name		= "kstat",
+	.m_type		= BMON_PRIMARY_MODULE,
+	.m_do		= kstat_do_read,
+	.m_set_opts	= kstat_set_opts,
+	.m_probe	= kstat_probe,
+	.m_init		= kstat_do_init,
 };
 
 static void __init kstat_init(void)

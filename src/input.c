@@ -24,216 +24,100 @@
 
 #include <bmon/bmon.h>
 #include <bmon/input.h>
+#include <bmon/module.h>
 #include <bmon/utils.h>
+
+static struct bmon_subsys input_subsys;
 
 struct reader_timing rtiming;
 
-static LIST_HEAD(primary_list);
-static LIST_HEAD(secondary_list);
-
-static struct input_module *preferred;
-
 #define FOREACH_SECONDARY_INPUT(F)				 \
 	do {							 \
-		struct input_module *i;				 \
-		list_for_each_entry(i, &secondary_list, im_list) \
-			if (i->im_enable && i->im_##F)		 \
-				i->im_##F ();			 \
+		struct bmon_module *m;				 \
+		list_for_each_entry(m, &input_subsys.s_secondary_list, m_list) \
+			if (m->m_flags & BMON_MODULE_ENABLED && m->m_##F)		 \
+				m->m_##F ();			 \
 	} while (0)
 
-void input_register(struct input_module *ops)
+void input_register(struct bmon_module *m)
 {
-	list_add_tail(&ops->im_list, &primary_list);
+	module_register(&input_subsys, m);
 }
 
-void input_register_secondary(struct input_module *ops)
+static struct bmon_module *get_input(const char *name)
 {
-	list_add_tail(&ops->im_list, &secondary_list);
+	return module_lookup(name, &input_subsys.s_primary_list);
 }
 
-static struct input_module *__get_input_module(const char *name,
-					       struct list_head *list)
+static void find_primary(void)
 {
-	struct input_module *i;
-
-	list_for_each_entry(i, list, im_list)
-		if (!strcmp(i->im_name, name))
-			return i;
-
-	return NULL;
-}
-
-static inline struct input_module *get_input_module(const char *name)
-{
-	return __get_input_module(name, &primary_list);
-}
-
-static inline struct input_module *get_sec_input_module(const char *name)
-{
-	return __get_input_module(name, &secondary_list);
-}
-
-static void find_preferred_input_module(void)
-{
-	if (preferred == NULL) {
-		struct input_module *i;
+	if (!input_subsys.s_primary) {
 		/* User has not specified an input module */
 
 #if defined SYS_SUNOS
-		preferred = get_input_module("kstat");
+		input_subsys.s_primary = get_input("kstat");
 #elif defined SYS_BSD
-		preferred = get_input_module("sysctl");
+		input_subsys.s_primary = get_input("sysctl");
 #elif defined SYS_LINUX
-		preferred = get_input_module("netlink");
+		input_subsys.s_primary = get_input("netlink");
 
-		if (preferred == NULL)
-			preferred = get_input_module("proc");
+		if (!input_subsys.s_primary)
+			input_subsys.s_primary = get_input("proc");
 
-		if (preferred == NULL)
-			preferred = get_input_module("sysfs");
+		if (!input_subsys.s_primary)
+			input_subsys.s_primary = get_input("sysfs");
 #endif
 
 		/*
 		 * All failed, search for any working module suitable
 		 * as default.
 		 */
-		if (preferred == NULL) {
-			list_for_each_entry(i, &primary_list, im_list) {
-				if (!i->im_no_default) {
-					preferred = i;
+		if (!input_subsys.s_primary) {
+			struct bmon_module *m;
+	
+			list_for_each_entry(m, &input_subsys.s_primary_list, m_list) {
+				if (!(m->m_flags & BMON_MODULE_NO_DEFAULT)) {
+					input_subsys.s_primary = m;
 					break;
 				}
 			}
 		}
 
-		if (preferred == NULL)
+		if (!input_subsys.s_primary)
 			quit("No input method found\n");
 	}
 }
 
 void input_read(void)
 {
-	find_preferred_input_module();
-	preferred->im_read();
+	if (input_subsys.s_primary)
+		input_subsys.s_primary->m_do();
 
-	FOREACH_SECONDARY_INPUT(read);
-}
-
-static void list_input(void)
-{
-	struct input_module *i;
-
-	printf("Input modules:\n");
-	if (list_empty(&primary_list))
-		printf("\tNo input modules found.\n");
-	else
-		list_for_each_entry(i, &primary_list, im_list)
-			printf("\t%s\n", i->im_name);
+	FOREACH_SECONDARY_INPUT(do);
 }
 
 void input_set(const char *name)
 {
-	static int set;
-	LIST_HEAD(list);
-	module_conf_t *m;
-	
-	if (set)
-		return;
-	set = 1;
-
-	if (name == NULL || !strcasecmp(name, "list")) {
-		list_input();
-		exit(0);
-	}
-
-	parse_module_param(name, &list);
-
-	list_for_each_entry(m, &list, m_list) {
-		preferred = get_input_module(m->m_name);
-
-		if (preferred == NULL)
-			quit("Unknown input module: %s\n", name);
-
-		if (preferred->im_parse_opt) {
-			tv_t *tv;
-
-			list_for_each_entry(tv, &m->m_attrs, tv_list)
-				preferred->im_parse_opt(tv->tv_type, tv->tv_value);
-		}
-
-		if (preferred->im_probe && preferred->im_probe())
-			return;
-	}
-
-	quit("No (working) input module found\n");
-}
-
-static void list_sec_input(void)
-{
-	struct input_module *i;
-
-	printf("Secondary input modules:\n");
-	if (list_empty(&secondary_list))
-		printf("\tNo secondary input modules found.\n");
-	else
-		list_for_each_entry(i, &secondary_list, im_list)
-			printf("\t%s\n", i->im_name);
+	return module_set(&input_subsys, BMON_PRIMARY_MODULE, name);
 }
 
 void input_set_secondary(const char *name)
 {
-	static int set;
-	module_conf_t *m;
-	LIST_HEAD(list);
-
-	if (set)
-		return;
-	set = 1;
-
-	if (name == NULL || !strcasecmp(name, "list")) {
-		list_sec_input();
-		exit(0);
-	}
-	
-	parse_module_param(name, &list);
-	list_for_each_entry(m, &list, m_list) {
-		struct input_module *i = get_sec_input_module(m->m_name);
-
-		if (i == NULL)
-			quit("Unknown input module: %s\n", name);
-
-		if (i->im_parse_opt) {
-			tv_t *tv;
-			list_for_each_entry(tv, &m->m_attrs, tv_list)
-				i->im_parse_opt(tv->tv_type, tv->tv_value);
-		}
-
-		if (i->im_probe && i->im_probe())
-			i->im_enable = 1;
-	}
+	return module_set(&input_subsys, BMON_SECONDARY_MODULE, name);
 }
 
-void input_init(void)
-{
-	find_preferred_input_module();
+static struct bmon_subsys input_subsys = {
+	.s_name			= "input",
+	.s_find_primary		= &find_primary,
+	.s_primary_list		= LIST_SELF(input_subsys.s_primary_list),
+	.s_secondary_list	= LIST_SELF(input_subsys.s_secondary_list),
+};
 
-	if (preferred->im_init)
-		preferred->im_init();
-
-	FOREACH_SECONDARY_INPUT(init);
-}
-
-void input_shutdown(void)
-{
-	if (preferred && preferred->im_shutdown)
-		preferred->im_shutdown();
-
-	FOREACH_SECONDARY_INPUT(shutdown);
-}
-
-static void __init init_input(void)
+static void __init __input_init(void)
 {
 	memset(&rtiming, 0, sizeof(rtiming));
 
 	rtiming.rt_variance.v_min = FLT_MAX;
+
+	module_register_subsys(&input_subsys);
 }

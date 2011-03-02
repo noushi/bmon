@@ -53,11 +53,12 @@ static void null_parse_opt(const char *type, const char *value)
 	}
 }
 
-static struct output_module null_ops = {
-	.om_name	= "null",
-	.om_draw	= null_draw,
-	.om_probe	= null_probe,
-	.om_parse_opt	= null_parse_opt,
+static struct bmon_module null_ops = {
+	.m_name		= "null",
+	.m_type		= BMON_PRIMARY_MODULE,
+	.m_do		= null_draw,
+	.m_probe	= null_probe,
+	.m_parse_opt	= null_parse_opt,
 };
 
 static void __init null_init(void)
