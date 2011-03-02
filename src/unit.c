@@ -184,9 +184,9 @@ char *unit_bytes2str(uint64_t bytes, char *buf, size_t len)
 
 	if (byte_unit) {
 		v = unit_value2str(bytes, byte_unit, &ustr, &prec);
-		snprintf(buf, len, "%'.*f%3s", v, prec, ustr);
+		snprintf(buf, len, "%'.*f%3s", prec, v, ustr);
 	} else
-		snprintf(buf, len, "%llu", bytes);
+		snprintf(buf, len, "%llu", (unsigned long long) bytes);
 
 	return buf;
 }
@@ -199,9 +199,9 @@ char *unit_bit2str(uint64_t bits, char *buf, size_t len)
 
 	if (bit_unit) {
 		v = unit_value2str(bits, bit_unit, &ustr, &prec);
-		snprintf(buf, len, "%'.*f%3s", v, prec, ustr);
+		snprintf(buf, len, "%'.*f%3s", prec, v, ustr);
 	} else
-		snprintf(buf, len, "%llu", bits);
+		snprintf(buf, len, "%llu", (unsigned long long) bits);
 
 	return buf;
 }
