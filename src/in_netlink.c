@@ -42,6 +42,7 @@ static struct element_group *grp;
 #include <netlink/route/qdisc.h>
 #include <netlink/route/class.h>
 #include <netlink/route/classifier.h>
+#include <netlink/route/sch/htb.h>
 #include <net/if.h>
 
 struct attr_map {
@@ -189,154 +190,167 @@ static void update_tc_infos(struct element *e, struct rtnl_tc *tc)
 	snprintf(buf, sizeof(buf), "%#x", rtnl_tc_get_parent(tc));
 	element_update_info(e, "Parent", buf);
 
-	//extern uint32_t		rtnl_tc_get_linktype(struct rtnl_tc *);
 }
 
-static void handle_qdisc(struct element *, struct rtnl_qdisc *, int);
+static void handle_qdisc(struct nl_object *obj, void *);
+static void find_classes(uint32_t, struct rdata *);
+static void find_qdiscs(uint32_t, struct rdata *);
 
-static void handle_filter(struct nl_object *obj, void *arg)
+static struct element *handle_tc_obj(struct rtnl_tc *tc, const char *prefix,
+				     struct rdata *rdata)
 {
-	struct rtnl_cls *cls = (struct rtnl_cls *) obj;
-	struct rdata *rdata = arg;
-	uint32_t id = rtnl_tc_get_handle((struct rtnl_tc *) cls);
-	char *kind = rtnl_tc_get_kind((struct rtnl_tc *) cls);
-	char name[IFNAME_MAX];
+	char buf[IFNAME_MAX], name[IFNAME_MAX];
+	uint32_t id = rtnl_tc_get_handle(tc);
 	struct element *e;
 
-	if (id)
-		rtnl_tc_handle2str(id, name, sizeof(name));
-	else
-		snprintf(name, sizeof(name), "cls:%s", kind);
+	rtnl_tc_handle2str(id, buf, sizeof(buf));
+	snprintf(name, sizeof(name), "%s %s (%s)",
+		 prefix, buf, rtnl_tc_get_kind(tc));
 
-	if (!(e = element_lookup(grp, name, id, rdata->parent)))
-		return;
+	if (!(e = element_lookup(grp, name, id, rdata ? rdata->parent : NULL)))
+		return NULL;
 
 	if (e->e_flags & ELEMENT_FLAG_CREATED) {
-		e->e_level = rdata->level;
+		e->e_level = rdata ? rdata->level : 0;
 
 		element_set_key_attr(e, ATTR_BYTES, ATTR_PACKETS);
 		element_set_usage_attr(e, ATTR_BYTES);
 
-		update_tc_infos(e, (struct rtnl_tc *) cls);
+		update_tc_infos(e, tc);
 
 		e->e_flags &= ~ELEMENT_FLAG_CREATED;
 	}
 
-	update_tc_attrs(e, (struct rtnl_tc *) cls);
+	update_tc_attrs(e, tc);
 
 	element_notify_update(e, NULL);
 	element_lifesign(e, 1);
+
+	return e;
+}
+
+static void handle_cls(struct nl_object *obj, void *arg)
+{
+	struct rtnl_cls *cls = (struct rtnl_cls *) obj;
+	struct rdata *rdata = arg;
+
+	handle_tc_obj((struct rtnl_tc *) cls, "cls", rdata);
 }
 
 static void handle_class(struct nl_object *obj, void *arg)
 {
+	struct rtnl_tc *tc = (struct rtnl_tc *) obj;
 	struct element *e;
 	struct rdata *rdata = arg;
-	struct rtnl_qdisc *leaf;
-	struct rtnl_class *class = (struct rtnl_class *) obj;
-	uint32_t parent = rtnl_tc_get_handle((struct rtnl_tc *) class);
-	uint32_t id = rtnl_tc_get_handle((struct rtnl_tc *) class);
-	char *kind = rtnl_tc_get_kind((struct rtnl_tc *) class);
-	char name[IFNAME_MAX];
 	struct rdata ndata = {
 		.level = rdata->level + 1,
-		.parent = rdata->parent,
 	};
 
-	if (id)
-		rtnl_tc_handle2str(id, name, sizeof(name));
-	else
-		snprintf(name, sizeof(name), "c:%s", kind);
-
-	if (!(e = element_lookup(grp, name, id, rdata->parent)))
+	if (!(e = handle_tc_obj(tc, "class", rdata)))
 		return;
 
-	if (e->e_flags & ELEMENT_FLAG_CREATED) {
-		e->e_level = rdata->level;
+	ndata.parent = e;
 
-		element_set_key_attr(e, ATTR_BYTES, ATTR_PACKETS);
-		element_set_usage_attr(e, ATTR_BYTES);
+	if (!strcmp(rtnl_tc_get_kind(tc), "htb"))
+		element_set_txmax(e, rtnl_htb_get_rate((struct rtnl_class *) tc));
 
-		update_tc_infos(e, (struct rtnl_tc *) class);
-
-		e->e_flags &= ~ELEMENT_FLAG_CREATED;
-	}
-
-	update_tc_attrs(e, (struct rtnl_tc *) class);
-
-	element_notify_update(e, NULL);
-	element_lifesign(e, 1);
-
-	if ((leaf = rtnl_class_leaf_qdisc(class, qdisc_cache)))
-		handle_qdisc(e, leaf, rdata->level + 1);
-
-	rtnl_class_foreach_child(class, class_cache, &handle_class, &ndata);
-	/* FIXME: classifier */
+	find_classes(rtnl_tc_get_handle(tc), &ndata);
+	find_qdiscs(rtnl_tc_get_handle(tc), &ndata);
 }
 
-static void handle_qdisc(struct element *e, struct rtnl_qdisc *q, int level)
+static void find_qdiscs(uint32_t parent, struct rdata *rdata)
 {
-	struct element *qe;
-	uint32_t id = rtnl_tc_get_handle((struct rtnl_tc *) q);
-	char *kind = rtnl_tc_get_kind((struct rtnl_tc *) q);
-	char name[IFNAME_MAX];
-	struct rdata rdata = {
-		.level = level + 1,
+	struct rtnl_qdisc *filter;
+
+	if (!(filter = rtnl_qdisc_alloc()))
+		return;
+
+	rtnl_tc_set_parent((struct rtnl_tc *) filter, parent);
+
+	nl_cache_foreach_filter(qdisc_cache, OBJ_CAST(filter),
+				handle_qdisc, rdata);
+
+	rtnl_qdisc_put(filter);
+}
+
+static void find_cls(int ifindex, uint32_t parent, struct rdata *rdata)
+{
+	struct nl_cache *cls_cache;
+
+	if (rtnl_cls_alloc_cache(sock, ifindex, parent, &cls_cache) < 0)
+		return;
+
+	nl_cache_foreach(cls_cache, handle_cls, rdata);
+
+	nl_cache_free(cls_cache);
+}
+
+static void find_classes(uint32_t parent, struct rdata *rdata)
+{
+	struct rtnl_class *filter;
+
+	if (!(filter = rtnl_class_alloc()))
+		return;
+
+	rtnl_tc_set_parent((struct rtnl_tc *) filter, parent);
+
+	nl_cache_foreach_filter(class_cache, OBJ_CAST(filter),
+				handle_class, rdata);
+
+	rtnl_class_put(filter);
+}
+
+static void handle_qdisc(struct nl_object *obj, void *arg)
+{
+	struct rtnl_tc *tc = (struct rtnl_tc *) obj;
+	struct element *e;
+	struct rdata *rdata = arg;
+	struct rdata ndata = {
+		.level = rdata->level + 1,
 	};
 
-	if (id)
-		rtnl_tc_handle2str(id, name, sizeof(name));
-	else
-		snprintf(name, sizeof(name), "q:%s", kind);
-
-	if (!(qe = element_lookup(grp, name, id, e)))
+	if (!(e = handle_tc_obj(tc, "qdisc", rdata)))
 		return;
-	
-	rdata.parent = qe;
 
-	if (qe->e_flags & ELEMENT_FLAG_CREATED) {
-		qe->e_level = level;
-		element_set_key_attr(qe, ATTR_BYTES, ATTR_PACKETS);
-		element_set_usage_attr(qe, ATTR_BYTES);
+	ndata.parent = e;
 
-		update_tc_infos(qe, (struct rtnl_tc *) q);
+	find_cls(rtnl_tc_get_ifindex(tc), rtnl_tc_get_handle(tc), &ndata);
 
-		qe->e_flags &= ~ELEMENT_FLAG_CREATED;
+	if (rtnl_tc_get_parent(tc) == TC_H_ROOT) {
+		find_cls(rtnl_tc_get_ifindex(tc), TC_H_ROOT, &ndata);
+		find_classes(TC_H_ROOT, &ndata);
 	}
 
-	update_tc_attrs(qe, (struct rtnl_tc *) q);
-
-	element_notify_update(qe, NULL);
-	element_lifesign(qe, 1);
-
-	rtnl_qdisc_foreach_child(q, class_cache, &handle_class, &rdata);
-
-	//rtnl_qdisc_foreach_filter_nocache(nl_h, qdisc, &handle_filter, &xn);
+	find_classes(rtnl_tc_get_handle(tc), &ndata);
 }
 
 static void handle_tc(struct element *e, struct rtnl_link *link)
 {
 	struct rtnl_qdisc *qdisc;
 	int ifindex = rtnl_link_get_ifindex(link);
+	struct rdata rdata = {
+		.level = 1,
+		.parent = e,
+	};
 
 	if (rtnl_class_alloc_cache(sock, ifindex, &class_cache) < 0)
 		return;
 
 	qdisc = rtnl_qdisc_get_by_parent(qdisc_cache, ifindex, TC_H_ROOT);
 	if (qdisc) {
-		handle_qdisc(e, qdisc, 1);
+		handle_qdisc(OBJ_CAST(qdisc), &rdata);
 		rtnl_qdisc_put(qdisc);
 	}
 
 	qdisc = rtnl_qdisc_get_by_parent(qdisc_cache, ifindex, 0);
 	if (qdisc) {
-		handle_qdisc(e, qdisc, 1);
+		handle_qdisc(OBJ_CAST(qdisc), &rdata);
 		rtnl_qdisc_put(qdisc);
 	}
 
 	qdisc = rtnl_qdisc_get_by_parent(qdisc_cache, ifindex, TC_H_INGRESS);
 	if (qdisc) {
-		handle_qdisc(e, qdisc, 1);
+		handle_qdisc(OBJ_CAST(qdisc), &rdata);
 		rtnl_qdisc_put(qdisc);
 	}
 
@@ -347,7 +361,7 @@ static void update_link_infos(struct element *e, struct rtnl_link *link)
 {
 	char buf[32];
 
-	snprintf(buf, sizeof(buf), "%lu", rtnl_link_get_mtu(link));
+	snprintf(buf, sizeof(buf), "%u", rtnl_link_get_mtu(link));
 	element_update_info(e, "MTU", buf);
 
 	snprintf(buf, sizeof(buf), "%#x", rtnl_link_get_weight(link));
