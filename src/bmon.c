@@ -82,8 +82,6 @@ static char *usage_text =
 "\n" \
 "Please see the bmon(1) man pages for full documentation.\n";
 
-static char *uid, *gid;
-
 static void do_shutdown(void)
 {
 	static int done;

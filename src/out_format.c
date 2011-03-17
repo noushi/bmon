@@ -86,11 +86,11 @@ static char *get_token(struct element_group *g, struct element *e,
 			snprintf(buf, len, "%u", e->e_id);
 			return buf;
 		} else if (!strcasecmp(n, "rxusage")) {
-			snprintf(buf, len, "2.0f",
+			snprintf(buf, len, "%2.0f",
 				e->e_rx_usage == FLT_MAX ? e->e_rx_usage : 0.0f);
 			return buf;
 		} else if (!strcasecmp(n, "txusage")) {
-			snprintf(buf, len, "2.0f",
+			snprintf(buf, len, "%2.0f",
 				e->e_tx_usage == FLT_MAX ? e->e_tx_usage : 0.0f);
 			return buf;
 		} else if (!strcasecmp(n, "haschilds")) {
@@ -125,10 +125,10 @@ static char *get_token(struct element_group *g, struct element *e,
 		}
 
 		if (!strncasecmp(type, "rx:", 3)) {
-			snprintf(buf, len, "%llu", a->a_rx_rate.r_total);
+			snprintf(buf, len, "%lu", a->a_rx_rate.r_total);
 			return buf;
 		} else if (!strncasecmp(type, "tx:", 3)) {
-			snprintf(buf, len, "%llu", a->a_tx_rate.r_total);
+			snprintf(buf, len, "%lu", a->a_tx_rate.r_total);
 			return buf;
 		} else if (!strncasecmp(type, "rxrate:", 7)) {
 			snprintf(buf, len, "%.2f", a->a_rx_rate.r_rate);

@@ -109,6 +109,9 @@ void module_set(struct bmon_subsys *ss, mod_type_t type, const char *name)
 	case BMON_SECONDARY_MODULE:
 		list = &ss->s_secondary_list;
 		break;
+
+	default:
+		BUG();
 	}
 
 	if (!name || !strcasecmp(name, "list")) {

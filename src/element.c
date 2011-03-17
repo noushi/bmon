@@ -36,7 +36,7 @@ static LIST_HEAD(denied);
 static int match_mask(const struct policy *p, const char *str)
 {
 	int i, n;
-	char c, *mask;
+	char c;
 
 	if (!p || !str)
 		return 0;
@@ -86,7 +86,7 @@ int element_allowed(const char *name, struct element_cfg *cfg)
 
 void element_parse_policy(const char *policy)
 {
-	char *start, *copy, *save, *tok;
+	char *start, *copy, *save = NULL, *tok;
 	struct policy *p;
 
 	if (!policy)
@@ -135,7 +135,6 @@ struct element *element_lookup(struct element_group *group, const char *name,
 {
 	struct element_cfg *cfg;
 	struct element *e;
-	char buf[32];
 	int i;
 
 	if (!group)

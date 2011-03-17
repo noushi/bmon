@@ -113,7 +113,7 @@ static void update_rrd(char *file, struct element *e)
 	char *argv[6];
 	char template[256];
 	char data[1024];
-	int m, i = 0;
+	int i = 0;
 	struct attr *a;
 
 	memset(argv, 0, sizeof(argv));

@@ -262,7 +262,7 @@ static void draw_attr_detail(struct element *e, struct attr *a, void *arg)
 
 static void draw_details(void)
 {
-	int start_pos, end_pos, i;
+	int i;
 	struct detail_arg arg = {
 		.nattr = 0,
 	};
@@ -397,8 +397,6 @@ static int lines_required_for_header(void)
 
 static void draw_header(void)
 {
-	struct element *e;
-
 	apply_layout(LAYOUT_STATUSBAR);
 
 	if (current_element)
@@ -425,8 +423,6 @@ static void draw_statusbar(void)
 	static const char *help_text = "Press ? for help";
 	char s[27];
 	time_t t = time(0);
-	double d;
-	int h, m;
 
 	apply_layout(LAYOUT_STATUSBAR);
 
@@ -563,7 +559,6 @@ static void draw_element(struct element_group *g, struct element *e,
 
 	if (line_visible(*line)) {
 		char *rxu1 = "", *txu1 = "", *rxu2 = "", *txu2 = "";
-		char buf[32];
 		double rx1 = 0.0f, tx1 = 0.0f, rx2 = 0.0f, tx2 = 0.0f;
 		char pad[IFNAMSIZ + 32];
 		int rx1prec = 0, tx1prec = 0, rx2prec = 0, tx2prec = 0;
@@ -734,7 +729,7 @@ static void draw_table(struct graph *g, struct graph_table *tbl,
 static void draw_history_graph(struct attr *a, struct history *h)
 {
 	struct graph *g;
-	int i, ncol = 0, save_row;
+	int ncol = 0, save_row;
 
 	g = graph_alloc(h, &c_graph_cfg);
 	graph_refill(g, h);
@@ -849,7 +844,6 @@ static void draw_content(void)
 	int graph_req, details_req, lines_available, total_req;
 	int info_req, empty_lines;
 	int disable_graph = 0, disable_details = 0, disable_info = 0;
-	struct element *e;
 
 	if (!current_element)
 		return;
@@ -882,7 +876,6 @@ static void draw_content(void)
 		goto draw;
 	}
 
-retry:
 	/*
 	 * Not enough lines available for full list and all details
 	 * requested...

@@ -48,7 +48,6 @@ static struct graph_cfg graph_cfg = {
 
 static diagram_type_t c_diagram_type = D_LIST;
 static char *c_hist = "second";
-static int c_graph_height = 6;
 static int c_quit_after = -1;
 
 static void print_list(struct element *e)
@@ -154,8 +153,6 @@ static void __print_graph(struct element *e, struct attr *a, void *arg)
 	graph_cfg.gc_unit = a->a_def->ad_unit;
 
 	list_for_each_entry(h, &a->a_history_list, h_list) {
-		int i;
-
 		if (strcasecmp(c_hist, h->h_definition->hd_name))
 			continue;
 

@@ -233,7 +233,7 @@ int group_new_hdr(const char *name, const char *title,
 int group_new_derived_hdr(const char *name, const char *title,
 			  const char *template)
 {
-	struct group_hdr *hdr, *t;
+	struct group_hdr *t;
 
 	if (group_lookup_hdr(name))
 		return -EEXIST;
