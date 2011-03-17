@@ -42,6 +42,16 @@ struct element_cfg *element_cfg_alloc(const char *name)
 	return ec;
 }
 
+struct element_cfg *element_cfg_create(const char *name)
+{
+	struct element_cfg *cfg;
+
+	if (!(cfg = element_cfg_lookup(name)))
+		cfg = element_cfg_alloc(name);
+
+	return cfg;
+}
+
 void element_cfg_free(struct element_cfg *ec)
 {
 	if (!ec)

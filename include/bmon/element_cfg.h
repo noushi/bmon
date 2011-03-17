@@ -44,6 +44,7 @@ struct element_cfg
 };
 
 extern struct element_cfg *	element_cfg_alloc(const char *);
+extern struct element_cfg *	element_cfg_create(const char *);
 extern void			element_cfg_free(struct element_cfg *);
 extern struct element_cfg *	element_cfg_lookup(const char *);
 

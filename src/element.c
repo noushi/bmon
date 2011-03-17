@@ -170,12 +170,9 @@ struct element *element_lookup(struct element_group *group, const char *name,
 		if (e->e_cfg->ec_description)
 			element_update_info(e, "Description",
 					    e->e_cfg->ec_description);
-
-		unit_bit2str(e->e_cfg->ec_rxmax * 8, buf, sizeof(buf));
-		element_update_info(e, "RxMax", buf);
-
-		unit_bit2str(e->e_cfg->ec_txmax * 8, buf, sizeof(buf));
-		element_update_info(e, "TxMax", buf);
+	
+		element_set_rxmax(e, e->e_cfg->ec_rxmax);
+		element_set_txmax(e, e->e_cfg->ec_txmax);
 	}
 
 	if (parent)
@@ -506,4 +503,32 @@ void element_update_info(struct element *e, const char *name, const char *value)
 	e->e_ninfo++;
 
 	list_add_tail(&i->i_list, &e->e_info_list);
+}
+
+void element_set_txmax(struct element *e, uint64_t max)
+{
+	char buf[32];
+
+	if (!e->e_cfg)
+		e->e_cfg = element_cfg_create(e->e_name);
+
+	if (e->e_cfg->ec_txmax != max)
+		e->e_cfg->ec_txmax = max;
+
+	unit_bit2str(e->e_cfg->ec_txmax * 8, buf, sizeof(buf));
+	element_update_info(e, "TxMax", buf);
+}
+
+void element_set_rxmax(struct element *e, uint64_t max)
+{
+	char buf[32];
+
+	if (!e->e_cfg)
+		e->e_cfg = element_cfg_create(e->e_name);
+
+	if (e->e_cfg->ec_rxmax != max)
+		e->e_cfg->ec_rxmax = max;
+
+	unit_bit2str(e->e_cfg->ec_rxmax * 8, buf, sizeof(buf));
+	element_update_info(e, "RxMax", buf);
 }
