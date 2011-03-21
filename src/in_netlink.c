@@ -42,7 +42,7 @@ static struct element_group *grp;
 #include <netlink/route/qdisc.h>
 #include <netlink/route/class.h>
 #include <netlink/route/classifier.h>
-#include <netlink/route/sch/htb.h>
+#include <netlink/route/qdisc/htb.h>
 #include <net/if.h>
 
 struct attr_map {
